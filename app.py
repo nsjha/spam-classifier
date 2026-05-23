@@ -6,24 +6,36 @@ import string
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 
-# Download required nltk data
-nltk.download('punkt')
-nltk.download('stopwords')
+# Download required NLTK data safely
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+
+# Initialize Flask app
 app = Flask(__name__)
 
-# Load model and vectorizer
+# Load vectorizer and model
 tfidf = pickle.load(open('vectorizer.pkl', 'rb'))
 model = pickle.load(open('model.pkl', 'rb'))
 
+# Initialize stemmer
 ps = PorterStemmer()
+
 
 # Text preprocessing function
 def transform_text(text):
 
+    # Convert to lowercase
     text = text.lower()
 
-    text = nltk.word_tokenize(text)
+    # Tokenization
+    text = nltk.word_tokenize(text, preserve_line=True)
 
     y = []
 
@@ -52,24 +64,29 @@ def transform_text(text):
     return " ".join(y)
 
 
-# Home page
+# Home Route
 @app.route('/')
 def home():
     return render_template('index.html')
 
 
-# Prediction route
+# Prediction Route
 @app.route('/predict', methods=['POST'])
 def predict():
 
+    # Get input message
     input_sms = request.form['message']
 
+    # Transform text
     transformed_sms = transform_text(input_sms)
 
+    # Vectorize text
     vector_input = tfidf.transform([transformed_sms])
 
+    # Predict
     result = model.predict(vector_input)[0]
 
+    # Display result
     if result == 1:
         prediction = "Spam 🚨"
     else:
@@ -81,6 +98,6 @@ def predict():
     )
 
 
-# Run Flask app
+# Run Flask App
 if __name__ == '__main__':
     app.run(debug=True)
